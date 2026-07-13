@@ -42,6 +42,7 @@ QQ Client → Tencent Server → SnowLuma(OneBot v11, host network) → POST /we
 | OneBot httpClient | Event webhook sender | `onebot_<UIN>.json` → `httpClients[]` |
 | Hermes `mcp_servers.snowluma` | MCP tool bridge | `~/.hermes/profiles/<name>/config.yaml` |
 | Hermes `platforms.webhook` | Webhook receiver + Route Script | `~/.hermes/profiles/<name>/config.yaml` |
+| Hermes `plugins` | Auto-deliver plain text to QQ | `~/.hermes/profiles/<name>/plugins/qq-auto-delivery/` |
 | Route Script | OneBot payload preprocessing | `~/.hermes/profiles/<name>/scripts/qq-command-handler.py` |
 
 Both components assume Hermes and SnowLuma/OneBot run on the **same host** (same `127.0.0.1`). Container networking details are out of scope; if they are containerized, ensure the webhook port is reachable from the OneBot process.
@@ -232,7 +233,68 @@ group_by:
 ```bash
 # Check gateway health
 curl http://127.0.0.1:8644/health
+```
 
+### QQ Auto-Delivery Plugin
+
+With the `qq-auto-delivery` plugin, **plain text responses from the LLM are automatically delivered to QQ** via the `transform_llm_output` hook. The LLM does NOT need to call `mcp__snowluma__invoke_action` to send text — it simply generates text naturally, and the plugin forwards it.
+
+MCP tools remain necessary for non-text operations (images, voice files, group management, etc.).
+
+**Plugin files** (place in `<profile>/plugins/qq-auto-delivery/`):
+
+`plugin.yaml`:
+```yaml
+name: qq-auto-delivery
+version: "1.0"
+description: "Auto-deliver LLM text responses to QQ when MCP tools are not called"
+```
+
+`__init__.py`:
+```python
+import json, logging, urllib.request
+
+logger = logging.getLogger(__name__)
+
+ONE_BOT_API = "http://127.0.0.1:3000/"
+ONE_BOT_TOKEN = "<your-token>"   # Same as SNOWLUMA_MCP_TOKEN
+TARGET_USER = 2085849951         # QQ number to deliver to
+
+def _send_text(text: str) -> None:
+    text = text.strip()
+    if not text:
+        return
+    payload = {
+        "action": "send_private_msg",
+        "params": {"user_id": TARGET_USER, "message": text},
+    }
+    try:
+        req = urllib.request.Request(
+            ONE_BOT_API, data=json.dumps(payload).encode(),
+            headers={"Authorization": f"Bearer {ONE_BOT_TOKEN}", "Content-Type": "application/json"},
+            method="POST")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            result = json.loads(resp.read().decode())
+            if result.get("status") == "ok" and result.get("retcode") == 0:
+                logger.info("delivered to QQ: %r", text[:200])
+    except Exception as e:
+        logger.error("HTTP error: %s", e)
+
+def deliver(response_text: str, **kwargs) -> str | None:
+    if response_text and response_text.strip():
+        _send_text(response_text)
+    return None  # Pass-through: response unchanged
+
+def register(ctx):
+    ctx.register_hook("transform_llm_output", deliver)
+```
+
+Enable in `<profile>/config.yaml`:
+```yaml
+plugins:
+  enabled:
+    - qq-auto-delivery
+```
 # Simulate webhook POST
 curl -s -X POST http://127.0.0.1:8644/webhooks/qq-message \
   -H "Content-Type: application/json" \
@@ -448,12 +510,13 @@ The `config.yaml` file also contains `SNOWLUMA_MCP_TOKEN` but the Docker volume 
 
 When writing SOUL.md for the QQ bot persona, include these critical instructions:
 
-1. **All replies must go through MCP** (`mcp__snowluma__invoke_action(action='send_private_msg')`) — plain text output is invisible to QQ users
-2. **Keep messages short** — one idea per message, split long content across multiple `invoke_action` calls
-3. **No Markdown, no emoji** in QQ messages
-4. **When sending files** (images, audio), always send a text notification first before the file transfer
-5. **Configure your preferred TTS provider** in config.yaml (e.g. edge, elevenlabs, openai) and reference it in SOUL.md
-6. **Non-MCP tools** (terminal, file tools, vision_analyze) can and should be used freely alongside snowluma MCP tools
+1. **Plain text replies are automatic** — With the `qq-auto-delivery` plugin enabled, the LLM's natural text output is forwarded to QQ via the `transform_llm_output` hook. Do NOT instruct the agent to call `mcp__snowluma__invoke_action` for text replies.
+2. **MCP tools for non-text only** — Use `mcp__snowluma__invoke_action` only for images, voice files, group management, and other non-text OneBot actions. Plain text should use natural LLM output.
+3. **Keep messages short** — one idea per message. Since the plugin forwards all text directly, be mindful of message length (QQ has character limits).
+4. **No Markdown, no emoji** in QQ messages — plain text only.
+5. **When sending files** (images, audio), always send a text notification first (which the plugin auto-delivers) before the file transfer via MCP/HTTP API.
+6. **Non-MCP tools** (terminal, file tools, vision_analyze) can and should be used freely alongside snowluma MCP tools.
+7. **Webhook `deliver: log`** is correct — text delivery is handled by the plugin, not the webhook response mechanism.
 
 ### Companion MCP Tools
 

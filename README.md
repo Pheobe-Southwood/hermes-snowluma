@@ -12,6 +12,7 @@ This repository is a **Hermes skill** that connects QQ messaging with Hermes Age
 ## Features
 
 - **8 MCP tools** → 179 OneBot actions (`send_private_msg`, `send_group_msg`, image upload, voice messages, group management, etc.)
+- **Auto-text-delivery plugin** — Plain text LLM responses are automatically forwarded to QQ via `qq-auto-delivery` plugin (no MCP needed for text)
 - **Route script** — Preprocesses OneBot payloads, enables `/new` / `/reset` session management in QQ
 - **Session grouping** — Private chats grouped by QQ number, group chats grouped by group number
 - **Image transfer** — `upload_file_stream` workflow for sending large images (>1MB) to QQ
@@ -28,10 +29,14 @@ npm install -g @snowluma/mcp
 mkdir -p ~/.hermes/skills/messaging/snowluma-hermes-bridge
 cp SKILL.md ~/.hermes/skills/messaging/snowluma-hermes-bridge/
 
-# 3. Add to your Hermes profile config.yaml
+# 3. Set up the auto-text-delivery plugin (for automatic plain text replies)
+mkdir -p ~/.hermes/profiles/<name>/plugins/qq-auto-delivery
+cp -r plugins/qq-auto-delivery/* ~/.hermes/profiles/<name>/plugins/qq-auto-delivery/
+
+# 4. Add to your Hermes profile config.yaml
 # (See SKILL.md for full configuration reference)
 
-# 4. Start Hermes gateway
+# 5. Start Hermes gateway
 hermes -p <profile> gateway start
 ```
 
@@ -52,6 +57,10 @@ hermes-snowluma/
 ├── scripts/
 │   ├── qq-command-handler.py         # OneBot payload preprocessing (route script)
 │   └── send-voice.py                 # Pure sender for TTS audio files
+├── plugins/
+│   └── qq-auto-delivery/             # Auto-deliver plain text to QQ
+│       ├── plugin.yaml
+│       └── __init__.py
 └── references/
     ├── user-profile.md               # User profile template
     ├── container-architecture.md     # SnowLuma Docker container details
