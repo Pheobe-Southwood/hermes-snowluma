@@ -61,6 +61,11 @@ hermes-snowluma/
 │   └── qq-auto-delivery/             # Auto-deliver plain text to QQ
 │       ├── plugin.yaml
 │       └── __init__.py
+├── skills/
+│   └── send-image-to-qq/             # HTTP relay + download_file image sending
+│       ├── SKILL.md
+│       └── scripts/
+│           └── sendimg.sh
 └── references/
     ├── user-profile.md               # User profile template
     ├── container-architecture.md     # SnowLuma Docker container details

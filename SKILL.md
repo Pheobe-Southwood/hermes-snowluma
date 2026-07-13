@@ -371,6 +371,25 @@ call("send_private_msg", {"user_id": <QQ>, "message": f"[CQ:image,file=file://{f
 - Always call complete step (`is_complete=True`) to trigger file merge
 - The returned `file_path` is inside the snowluma container and accessible via `file://` protocol
 
+#### Alternative: HTTP Relay + download_file (for any file size)
+
+A simpler approach without chunking — start a temporary HTTP server, have the bot download the file via MCP `download_file`, then send. See the dedicated skill at `skills/send-image-to-qq/SKILL.md` for the full workflow and the helper script at `skills/send-image-to-qq/scripts/sendimg.sh`.
+
+Quick reference:
+```bash
+# 1. Start HTTP server
+/root/sendimg.sh start /path/to/images
+
+# 2. Bot downloads via MCP: download_file(url="http://<host-ip>:9999/<filename>")
+#    Returns bot-local path like /app/snowluma-data/data/downloads/<filename>
+
+# 3. Stop server
+/root/sendimg.sh stop
+
+# 4. Send via CQ image code
+#    [CQ:image,file=/app/snowluma-data/data/downloads/<filename>]
+```
+
 ---
 
 ## Part 4: Voice / TTS Integration
