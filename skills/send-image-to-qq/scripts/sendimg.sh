@@ -4,12 +4,12 @@
 #   ./sendimg.sh start [directory]   - Start server & list recent PNGs
 #   ./sendimg.sh stop               - Stop the server
 
-PORT=9999
+PORT="${SENDIMG_PORT:-9999}"
 PID_FILE="/tmp/sendimg_http_pid"
 
 case "${1:-}" in
   start)
-    DIR="${2:-/root}"
+    DIR="${2:-$PWD}"
     if [ ! -d "$DIR" ]; then
       echo "ERROR: Directory $DIR not found"
       exit 1
@@ -61,8 +61,8 @@ case "${1:-}" in
     echo "Usage: $0 {start|stop} [directory]"
     echo ""
     echo "Examples:"
-    echo "  $0 start              Serve /root/ and list recent PNGs"
-    echo "  $0 start /root/projects/anima/output  Serve that dir"
+    echo "  $0 start              Serve current dir and list recent PNGs"
+    echo "  $0 start /path/to/images  Serve that dir"
     echo "  $0 stop               Kill the server"
     exit 1
     ;;

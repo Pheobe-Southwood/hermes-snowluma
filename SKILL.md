@@ -378,16 +378,16 @@ A simpler approach without chunking — start a temporary HTTP server, have the 
 Quick reference:
 ```bash
 # 1. Start HTTP server
-/root/sendimg.sh start /path/to/images
+./sendimg.sh start /path/to/images
 
 # 2. Bot downloads via MCP: download_file(url="http://<host-ip>:9999/<filename>")
-#    Returns bot-local path like /app/snowluma-data/data/downloads/<filename>
+#    Returns bot-local path (e.g. /app/snowluma-data/data/downloads/<filename>)
 
 # 3. Stop server
-/root/sendimg.sh stop
+./sendimg.sh stop
 
-# 4. Send via CQ image code
-#    [CQ:image,file=/app/snowluma-data/data/downloads/<filename>]
+# 4. Send via CQ image code (use the bot-local path returned in step 2)
+#    [CQ:image,file=<bot-local-path>]
 ```
 
 ---

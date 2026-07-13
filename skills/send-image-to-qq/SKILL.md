@@ -13,7 +13,7 @@ category: social-media
 
 # Send Image to QQ
 
-Sends a local image file from the Hermes host to a QQ user. The Hermes agent runs inside Docker while the QQ bot (NapCat/snowluma) runs on the host, so there's no shared filesystem.
+Sends a local image file from the Hermes host to a QQ user. The Hermes agent and the QQ bot (OneBot/NapCat/snowluma) typically run in separate containers or machines without a shared filesystem, so direct `file://` paths don't work.
 
 Solution: start a temporary HTTP server on the host, have the bot download the file, then send it via CQ image code.
 
@@ -24,30 +24,31 @@ Solution: start a temporary HTTP server on the host, have the bot download the f
 
 ## Prerequisites
 
-- `/root/sendimg.sh` must exist on the host (HTTP relay helper that starts/stops a Python HTTP server)
-- `python3` available on the host
-- QQ bot must be running and connected
+- `sendimg.sh` helper script (included in `skills/send-image-to-qq/scripts/`). Place it anywhere in PATH, or run as `./sendimg.sh`.
+- `python3` available on the host running Hermes
+- QQ bot (OneBot-compatible) must be running and connected
+- Host must have an IP address reachable by the QQ bot (same LAN, public IP, or Docker host network)
 
 ## Workflow
 
 ### 1. Start HTTP server
 ```
-/root/sendimg.sh start [directory]
+./sendimg.sh start [directory]
 ```
-Prints the server URL and the 10 newest PNGs. Default directory is `/root`.
+Prints the server URL and the 10 newest PNGs in that directory. If directory is omitted, serves the current working directory.
 
 ### 2. Download file via bot
-Call `download_file` action with the URL from step 1. Returns a bot-local path like `/app/snowluma-data/data/downloads/<filename>`.
+Call the MCP `download_file` action with the URL from step 1. Returns a bot-local path (e.g. `/app/snowluma-data/data/downloads/<filename>` on snowluma, or `/tmp/napcat/downloads/<filename>` on NapCat — the exact path depends on your OneBot implementation).
 
 ### 3. Stop HTTP server
 ```
-/root/sendimg.sh stop
+./sendimg.sh stop
 ```
 
 ### 4. Send to QQ
-Use `send_private_msg` (or `send_group_msg`) with CQ image code:
+Use `send_private_msg` (or `send_group_msg`) with a CQ image code pointing to the bot-local path returned in step 2:
 ```
-[CQ:image,file=/app/snowluma-data/data/downloads/<filename>]
+[CQ:image,file=<bot-local-path-from-step-2>]
 ```
 
 ## Pitfalls
